@@ -1,3 +1,103 @@
+local M = {}
+
+local util = require "rust-tools.util"
+local function get_params()
+  return {
+    textDocument = vim.lsp.util.make_text_document_params(0),
+    position = nil, -- get em all
+  }
+end
+
+local function handler(_, result, ctx)
+  if result == nil then
+    return
+  end
+  local line = vim.fn.line('.')
+  if M.options == nil then
+    M.options = {}
+  end
+  local contents = {}
+  local title = 'Codelens:'
+  table.insert(contents, title)
+
+  local index = 0
+  for _, lens in pairs(result) do
+    local lens_title = ''
+    if lens.range.start.line == (line - 1) then
+      index = index + 1
+      M.options[index] = { client_id = ctx.client_id, lens = lens }
+      lens_title = '[' .. index .. ']' .. ' ' .. lens.command.title
+      table.insert(contents, lens_title)
+    end
+  end
+
+  if #M.options == 0 then
+    vim.notify('No executable codelens found at current line')
+  else
+    local lines = table.concat(contents, "\n")
+    local config =  {
+      relative = 'cursor',
+      width = 30,
+      height = #contents + 2,
+      row = 1,
+      col = 1,
+      style = 'minimal',
+      border = {'╭', '─', '╮', '│', '╯', '─', '╰', '│'},
+    }
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(lines, "\n"))
+    vim.api.nvim_open_win(bufnr, true, config)
+    vim.api.nvim_set_option_value('buftype','nofile', {})
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', '<cmd>q<CR>', { noremap = true, silent = true })
+    vim.api.nvim_win_set_cursor(0, {2, 1})
+
+    -- -- 定义按键映射函数
+    -- local select_option = function()
+    --   -- 获取当前光标所在行号
+    --   local cursor_row = vim.fn.line('.')
+    --
+    --   -- 检查是否为有效选项行
+    --   if M.options[cursor_row - 1] then
+    --     -- 执行选项操作，这里只是简单地打印选项信息
+    --     print('Selected option:', M.options[cursor_row - 1].lens.command.title)
+    --   end
+    -- end
+
+    -- 设置按键映射，将回车键绑定到select_option函数
+    -- vim.api.nvim_buf_set_keymap(bufnr, 'n', '<CR>', '<cmd>lua select_option()<CR>', { noremap = true, silent = true })
+
+    function M.select_option()
+      -- 获取当前光标所在行号
+      local cursor_row = vim.fn.line('.')
+
+      -- 检查是否为有效选项行
+      if M.options[cursor_row - 1] then
+        -- 执行选项操作，这里只是简单地打印选项信息
+        print('Selected option:', M.options[cursor_row - 1].lens.command.title)
+
+        -- 关闭浮动窗口
+        vim.api.nvim_win_close(0, true)
+      end
+    end
+
+    function M.send_enter_key()
+      -- 发送回车键到当前缓冲区
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'n', true)
+    end
+
+  end
+
+end
+
+-- Sends the request to rust-analyzer to get cargo.tomls location and open it
+function M.codelens()
+  util.lsp_buf_request(0, "textDocument/codeLens", get_params(), handler)
+end
+
+return M
+
+
+
 -- local api = vim.api
 -- local lspcode = require("vim.lsp.codelens")
 -- local wrap = require('lspsaga.wrap')
@@ -154,57 +254,4 @@
 -- end
 --
 -- return codelens
---
--- local utils = require('go.utils')
--- local codelens = require('vim.lsp.codelens')
---
--- local M = {}
---
--- function M.setup()
---   utils.log('enable codelens')
---   vim.api.nvim_set_hl(0, 'LspCodeLens', { link = 'WarningMsg', default = true })
---   vim.api.nvim_set_hl(0, 'LspCodeLensText', { link = 'WarningMsg', default = true })
---   vim.api.nvim_set_hl(0, 'LspCodeLensSign', { link = 'WarningMsg', default = true })
---   vim.api.nvim_set_hl(0, 'LspCodeLensSeparator', { link = 'Boolean', default = true })
---   vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI', 'InsertLeave' }, {
---     group = vim.api.nvim_create_augroup('gonvim__codelenses', {}),
---     pattern = { '*.go', '*.mod' },
---     callback = function()
---       require('go.codelens').refresh()
---     end,
---   })
--- end
---
--- function M.run_action()
---   local guihua = utils.load_plugin('guihua.lua', 'guihua.gui')
---   local original_select = vim.ui.select
---
---   if guihua then
---     vim.ui.select = require('guihua.gui').select
---   end
---
---   codelens.run()
---   vim.defer_fn(function()
---     vim.ui.select = original_select
---   end, 1000)
--- end
---
--- function M.refresh()
---   local found = false
---   if _GO_NVIM_CFG.lsp_codelens ~= false then
---     if not found then
---       for _, lsp in pairs(vim.lsp.get_active_clients()) do
---         if lsp.name == 'gopls' then
---           found = true
---           break
---         end
---       end
---     end
---     if not found then
---       return
---     end
---     vim.lsp.codelens.refresh()
---   end
--- end
---
--- return M
+
