@@ -33,4 +33,19 @@ function M.close_win(winnr)
   end
 end
 
+function M.split(bufnr)
+  -- local cmd = config.vertical_split and "vsplit" or "split"
+  --
+  vim.cmd("split")
+  local win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(win, bufnr)
+end
+
+function M.resize(amount)
+  -- local cmd = config.split_vertical and "vertical resize " or "resize"
+  -- cmd = cmd .. amount
+
+  vim.cmd("resize" .. amount)
+end
+
 return M

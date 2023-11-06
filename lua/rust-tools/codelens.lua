@@ -1,6 +1,7 @@
 local M = {}
 
 local util = require "rust-tools.util"
+local executors = require "rust-tools.executors"
 local function get_params()
   return {
     textDocument = vim.lsp.util.make_text_document_params(0),
@@ -45,48 +46,35 @@ local function handler(_, result, ctx)
       border = {'╭', '─', '╮', '│', '╯', '─', '╰', '│'},
     }
     local bufnr = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(lines, "\n"))
     vim.api.nvim_open_win(bufnr, true, config)
+
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(lines, "\n"))
     vim.api.nvim_set_option_value('buftype','nofile', {})
+    vim.api.nvim_set_option_value('bufhidden','wipe', {})
+    vim.api.nvim_set_option_value('modifiable',false, {buf = bufnr})
+
     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', '<cmd>q<CR>', { noremap = true, silent = true })
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', '<ESC>', '<cmd>q<CR>', { noremap = true, silent = true })
+
     vim.api.nvim_win_set_cursor(0, {2, 1})
 
-    -- -- 定义按键映射函数
-    -- local select_option = function()
-    --   -- 获取当前光标所在行号
-    --   local cursor_row = vim.fn.line('.')
-    --
-    --   -- 检查是否为有效选项行
-    --   if M.options[cursor_row - 1] then
-    --     -- 执行选项操作，这里只是简单地打印选项信息
-    --     print('Selected option:', M.options[cursor_row - 1].lens.command.title)
-    --   end
-    -- end
-
-    -- 设置按键映射，将回车键绑定到select_option函数
-    -- vim.api.nvim_buf_set_keymap(bufnr, 'n', '<CR>', '<cmd>lua select_option()<CR>', { noremap = true, silent = true })
-
-    function M.select_option()
-      -- 获取当前光标所在行号
+    local select_option = function()
       local cursor_row = vim.fn.line('.')
-
-      -- 检查是否为有效选项行
       if M.options[cursor_row - 1] then
-        -- 执行选项操作，这里只是简单地打印选项信息
-        print('Selected option:', M.options[cursor_row - 1].lens.command.title)
 
-        -- 关闭浮动窗口
-        vim.api.nvim_win_close(0, true)
+        print('Selected option:', M.options[cursor_row - 1].lens.command.title)
+        print(vim.inspect(ctx))
       end
     end
 
-    function M.send_enter_key()
-      -- 发送回车键到当前缓冲区
-      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'n', true)
-    end
+    vim.keymap.set(
+    "n",
+    "<CR>",
+    select_option,
+    { buffer = bufnr, noremap = true, silent = true }
+    )
 
   end
-
 end
 
 -- Sends the request to rust-analyzer to get cargo.tomls location and open it
